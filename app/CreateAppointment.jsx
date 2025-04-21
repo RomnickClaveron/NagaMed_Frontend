@@ -9,6 +9,8 @@ import {
   TextInput,
   Alert,
   TouchableWithoutFeedback,
+  ScrollView,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import DropDownPicker from 'react-native-dropdown-picker';
@@ -26,8 +28,10 @@ const CreateAppointment = () => {
   const [clinics, setClinics] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [reason, setReason] = useState('');
-  const [appointmentDateTime, setAppointmentDateTime] = useState(new Date());
+  const [appointmentDate, setAppointmentDate] = useState(new Date());
+  const [appointmentTime, setAppointmentTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -64,14 +68,48 @@ const CreateAppointment = () => {
     }
   };
 
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setAppointmentDate(selectedDate);
+    }
+  };
+
+  const handleTimeChange = (event, selectedTime) => {
+    setShowTimePicker(false);
+    if (selectedTime) {
+      setAppointmentTime(selectedTime);
+    }
+  };
+
   const handleBookAppointment = async () => {
     if (!name || !selectedClinic || !selectedDoctor || !reason) {
       setErrorMessage('Please fill in all fields');
       return;
     }
 
-    if (appointmentDateTime <= new Date()) {
-      setErrorMessage('Appointment date must be in the future');
+    // Combine date and time
+    const appointmentDateTime = new Date(
+      appointmentDate.getFullYear(),
+      appointmentDate.getMonth(),
+      appointmentDate.getDate(),
+      appointmentTime.getHours(),
+      appointmentTime.getMinutes()
+    );
+
+    // Get current date and time
+    const now = new Date();
+    // Set time to 00:00:00 for date comparison
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Set appointment date to 00:00:00 for comparison
+    const selectedDate = new Date(
+      appointmentDate.getFullYear(),
+      appointmentDate.getMonth(),
+      appointmentDate.getDate()
+    );
+
+    if (selectedDate < today) {
+      setErrorMessage('Appointment date cannot be in the past');
       return;
     }
 
@@ -110,13 +148,14 @@ const CreateAppointment = () => {
     setSelectedClinic(null);
     setSelectedDoctor(null);
     setReason('');
-    setAppointmentDateTime(new Date());
+    setAppointmentDate(new Date());
+    setAppointmentTime(new Date());
     setErrorMessage('');
   };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <View style={styles.container}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Book an Appointment</Text>
 
         <View style={styles.inputContainer}>
@@ -125,24 +164,39 @@ const CreateAppointment = () => {
         </View>
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Appointment Date and Time</Text>
+          <Text style={styles.label}>Appointment Date</Text>
           <TouchableOpacity onPress={() => setShowDatePicker(true)}>
-            <Text style={styles.input}>{appointmentDateTime.toLocaleString()}</Text>
+            <Text style={styles.input}>{appointmentDate.toDateString()}</Text>
           </TouchableOpacity>
           {showDatePicker && (
             <DateTimePicker
-              value={appointmentDateTime}
-              mode="datetime"
+              value={appointmentDate}
+              mode="date"
               display="default"
-              onChange={(event, date) => {
-                setShowDatePicker(false);
-                if (date) setAppointmentDateTime(date);
-              }}
+              onChange={handleDateChange}
+              minimumDate={new Date()}
             />
           )}
         </View>
 
-        <View style={[styles.inputContainer, { zIndex: clinicOpen ? 300 : 1 }]}> 
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Appointment Time</Text>
+          <TouchableOpacity onPress={() => setShowTimePicker(true)}>
+            <Text style={styles.input}>
+              {appointmentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </TouchableOpacity>
+          {showTimePicker && (
+            <DateTimePicker
+              value={appointmentTime}
+              mode="time"
+              display="default"
+              onChange={handleTimeChange}
+            />
+          )}
+        </View>
+
+        <View style={[styles.inputContainer, { zIndex: clinicOpen ? 300 : 1 }]}>
           <Text style={styles.label}>Select a Clinic</Text>
           <DropDownPicker
             open={clinicOpen}
@@ -155,7 +209,7 @@ const CreateAppointment = () => {
           />
         </View>
 
-        <View style={[styles.inputContainer, { zIndex: doctorOpen ? 200 : 1 }]}> 
+        <View style={[styles.inputContainer, { zIndex: doctorOpen ? 200 : 1 }]}>
           <Text style={styles.label}>Select a Doctor</Text>
           <DropDownPicker
             open={doctorOpen}
@@ -182,21 +236,31 @@ const CreateAppointment = () => {
             <Text style={styles.buttonText}>Confirm Appointment</Text>
           </TouchableOpacity>
         )}
-      </View>
+      </ScrollView>
     </TouchableWithoutFeedback>
   );
 };
 
 export default CreateAppointment;
 
-
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  inputContainer: { marginBottom: 25 },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  title: { fontSize: 24, fontWeight: 'bold' },
+  inputContainer: { marginBottom: 10 },
   label: { fontSize: 16, marginBottom: 5 },
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10 },
   errorText: { color: 'red', marginBottom: 10 },
   submitButton: { backgroundColor: '#007bff', padding: 15, borderRadius: 8, alignItems: 'center' },
   buttonText: { color: '#fff', fontSize: 16 },
+  dateTimePicker: {
+    height: 120,
+    marginTop: -10,
+  },
 });
